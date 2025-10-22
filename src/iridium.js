@@ -10,6 +10,7 @@ function getTable(config) {
 	let counter = config.counter || 0;
 	const opt = config.opt || 0;
 	const basedir = config.root + "IridiumFlares/";
+	let options;
 	if (counter === 0) {
 		options = utils.get_options("IridiumFlares.aspx?");
 		if (!fs.existsSync(basedir)) {
@@ -59,15 +60,13 @@ function getTable(config) {
 					].forEach((ele) => {
 						temp[eventsIridium[ele[0]]] = tr.eq(ele[1]).find("td").eq(1).text();
 					});
-					temp[eventsIridium[13]] = "https://www.heavens-above.com/" + $("#ctl00_cph1_imgSkyChart").attr("src") //.replace("size=800", "size=1600");,
+					temp[eventsIridium[13]] = "https://www.heavens-above.com/" + $("#ctl00_cph1_imgSkyChart").attr("src") //.replace("size=800", "size=1600");
 					const id = utils.md5(Math.random().toString()); //temp[eventsIridium[6]];
 					temp[eventsIridium[14]] = id;
-					fs.appendFile(basedir + id + ".html", table.html(), (err) => {
+					fs.writeFile(basedir + id + ".html", table.html(), (err) => {
 						if (err) console.log(err);
 					}); //保存表格
-					request.get(utils.image_options(temp[eventsIridium[13]])).pipe(fs.createWriteStream(basedir + id + ".png", {
-						"flags": "a"
-					})).on("error", (err) => {
+					request.get(utils.image_options(temp[eventsIridium[13]])).pipe(fs.createWriteStream(basedir + id + ".png")).on("error", (err) => {
 						console.error(err);
 					}); //下载图片
 					resolve(temp);
