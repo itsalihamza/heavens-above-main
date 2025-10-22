@@ -18,6 +18,11 @@ jobs:
         with:
           node-version: '16'
 
+      - name: Print Node and npm versions
+        run: |
+          node -v
+          npm -v
+
       - name: Install dependencies
         run: npm ci
 
