@@ -80,7 +80,7 @@ typings/
 .dynamodb/
 
 # Npm Lock files
-package-lock.json
+# package-lock.json (committed to enable deterministic CI installs)
 
 # Dist
 dist/
