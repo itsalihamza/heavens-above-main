@@ -1,0 +1,68 @@
+name: Scheduled maintenance
+
+on:
+  schedule:
+    # Run daily at 03:00 UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Create backup of public/data (if present)
+        id: backup
+        run: |
+          set -e
+          if [ -d public/data ]; then
+            mkdir -p backups
+            ts=$(date -u +%Y%m%dT%H%M%SZ)
+            file=backups/public-data-${ts}.tar.gz
+            tar -czf "$file" public/data
+            echo "BACKUP_FILE=$file" >> $GITHUB_ENV
+            echo "Backup created: $file"
+          else
+            echo "No public/data directory found; skipping backup"
+          fi
+
+      - name: Upload backup artifact
+        if: env.BACKUP_FILE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-data-backup
+          path: ${{ env.BACKUP_FILE }}
+
+      - name: Create run summary issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const ts = new Date().toISOString();
+            const backupFile = process.env.BACKUP_FILE || 'none';
+            const body = `Automated scheduled maintenance run on ${ts}\n\n- Lint: completed\n- Tests: completed\n- Backup artifact: ${backupFile}\n\nThis issue was created automatically by the scheduled maintenance workflow.`;
+            await github.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Scheduled maintenance run - ${ts}`,
+              body
+            });
