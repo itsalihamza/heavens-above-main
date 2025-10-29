@@ -5,6 +5,12 @@ on:
     branches: [ main ]
   workflow_dispatch: {}
 
+# Grant the workflow the minimum required write permissions so the
+# actions/gh-pages step can push the `gh-pages` branch using GITHUB_TOKEN.
+permissions:
+  contents: write
+  pages: write
+
 jobs:
   build:
     name: Build & Test
