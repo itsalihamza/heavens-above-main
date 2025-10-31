@@ -1,0 +1,237 @@
+name: Documentation Deployment
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - '*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build-docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+      
+      - name: Install documentation dependencies
+        run: |
+          npm install -g jsdoc
+          npm install -g markdown-to-html
+      
+      - name: Generate API documentation
+        run: |
+          mkdir -p docs/api
+          jsdoc -c jsdoc.json -d docs/api src/
+        continue-on-error: true
+      
+      - name: Convert README to HTML
+        run: |
+          mkdir -p docs/html
+          markdown README.md > docs/html/index.html
+      
+      - name: Create documentation index
+        run: |
+          cat > docs/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Heavens Above - Documentation</title>
+              <style>
+                  body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+                  h1 { color: #333; }
+                  .docs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 30px; }
+                  .doc-card { border: 1px solid #ddd; padding: 20px; border-radius: 8px; }
+                  .doc-card h2 { margin-top: 0; color: #0066cc; }
+                  a { color: #0066cc; text-decoration: none; }
+                  a:hover { text-decoration: underline; }
+              </style>
+          </head>
+          <body>
+              <h1>📚 Heavens Above Documentation</h1>
+              <p>Welcome to the Heavens Above project documentation.</p>
+              
+              <div class="docs-grid">
+                  <div class="doc-card">
+                      <h2>📖 User Guide</h2>
+                      <p>Getting started with Heavens Above</p>
+                      <a href="html/index.html">Read Guide →</a>
+                  </div>
+                  
+                  <div class="doc-card">
+                      <h2>🔧 API Reference</h2>
+                      <p>Complete API documentation</p>
+                      <a href="api/index.html">View API Docs →</a>
+                  </div>
+                  
+                  <div class="doc-card">
+                      <h2>📝 Changelog</h2>
+                      <p>Project version history</p>
+                      <a href="CHANGELOG.html">View Changelog →</a>
+                  </div>
+              </div>
+              
+              <footer style="margin-top: 50px; padding-top: 20px; border-top: 1px solid #ddd; color: #666;">
+                  <p>Generated on: $(date)</p>
+                  <p>Version: $(git describe --tags --always)</p>
+              </footer>
+          </body>
+          </html>
+          EOF
+      
+      - name: Upload documentation artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: documentation
+          path: docs/
+          retention-days: 90
+  
+  deploy-github-pages:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: build-docs
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Download documentation
+        uses: actions/download-artifact@v3
+        with:
+          name: documentation
+          path: docs
+      
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+  
+  deploy-readthedocs:
+    name: Deploy to Read the Docs
+    runs-on: ubuntu-latest
+    needs: build-docs
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      
+      - name: Install Sphinx
+        run: |
+          pip install sphinx sphinx-rtd-theme recommonmark
+      
+      - name: Build Sphinx documentation
+        run: |
+          mkdir -p docs/source
+          sphinx-quickstart -q -p "Heavens Above" -a "Project Team" -v "1.0" docs
+          cd docs && make html
+        continue-on-error: true
+      
+      - name: Trigger Read the Docs build
+        env:
+          RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
+        run: |
+          if [ -n "$RTD_TOKEN" ]; then
+            curl -X POST -H "Authorization: Token $RTD_TOKEN" \
+              https://readthedocs.org/api/v3/projects/heavens-above/versions/latest/builds/
+            echo "✅ Read the Docs build triggered"
+          else
+            echo "ℹ️ RTD_TOKEN not configured, skipping deployment"
+          fi
+  
+  validate-links:
+    name: Validate Documentation Links
+    runs-on: ubuntu-latest
+    needs: build-docs
+    
+    steps:
+      - name: Download documentation
+        uses: actions/download-artifact@v3
+        with:
+          name: documentation
+          path: docs
+      
+      - name: Install link checker
+        run: npm install -g broken-link-checker
+      
+      - name: Check for broken links
+        run: |
+          blc docs/ --recursive --ordered --exclude "localhost"
+        continue-on-error: true
+  
+  generate-changelog:
+    name: Generate Changelog
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v2
+        with:
+          config: cliff.toml
+          args: --verbose
+        env:
+          OUTPUT: CHANGELOG.md
+      
+      - name: Commit changelog
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add CHANGELOG.md
+          git diff --staged --quiet || git commit -m "docs: update changelog [skip ci]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
+  notify-deployment:
+    name: Notify Documentation Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-github-pages, deploy-readthedocs]
+    if: always()
+    
+    steps:
+      - name: Send notification
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const status = '${{ needs.deploy-github-pages.result }}' === 'success' ? '✅' : '❌';
+            const message = `${status} Documentation deployment completed\n\n` +
+              `- GitHub Pages: ${{ needs.deploy-github-pages.result }}\n` +
+              `- Read the Docs: ${{ needs.deploy-readthedocs.result }}\n\n` +
+              `View documentation: https://${context.repo.owner}.github.io/${context.repo.repo}/`;
+            
+            console.log(message);
