@@ -1,6 +1,7 @@
 name: Scheduled maintenance
 
 on:
+  push: {}
   schedule:
     # Run daily at 03:00 UTC
     - cron: '0 16 * * *'
@@ -60,7 +61,8 @@ jobs:
             const ts = new Date().toISOString();
             const backupFile = process.env.BACKUP_FILE || 'none';
             const body = `Automated scheduled maintenance run on ${ts}\n\n- Lint: completed\n- Tests: completed\n- Backup artifact: ${backupFile}\n\nThis issue was created automatically by the scheduled maintenance workflow.`;
-            await github.issues.create({
+            // In github-script v6 the Octokit instance exposes REST methods under `github.rest`
+            await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `Scheduled maintenance run - ${ts}`,
