@@ -87,6 +87,7 @@ jobs:
       
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
+        continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: 'chore: update ${{ matrix.update-type }} dependencies'
@@ -135,6 +136,7 @@ jobs:
       
       - name: Check for major updates
         id: major
+        continue-on-error: true
         run: |
           npm outdated --json > outdated.json || true
           major_updates=$(cat outdated.json | jq 'to_entries | map(select(.value.latest != .value.current and (.value.latest | split(".")[0]) != (.value.current | split(".")[0]))) | length')
@@ -143,6 +145,7 @@ jobs:
       - name: Create issue for major updates
         if: steps.major.outputs.count > 0
         uses: actions/github-script@v6
+        continue-on-error: true
         with:
           script: |
             const fs = require('fs');
@@ -185,12 +188,14 @@ jobs:
           node-version: '18.x'
       
       - name: Run npm audit fix
+        continue-on-error: true
         run: |
           npm audit fix
           npm audit fix --force || true
       
       - name: Create Pull Request for security fixes
         uses: peter-evans/create-pull-request@v5
+        continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: 'security: apply automated security fixes'
