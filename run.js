@@ -1,10 +1,9 @@
 const satellite = require("./src/satellite");
 const iridium = require("./src/iridium");
 
-var location = [39.9042, 116.4074, "%E5%8C%97%E4%BA%AC%E5%B8%82", 52, "ChST"];
-//COOKIE需要先通过浏览器调到中文
+// COOKIE需要先通过浏览器调到中文
 
-//const names = ["ISS", "IridiumFlares"];
+// const names = ["ISS", "IridiumFlares"];
 // https://www.heavens-above.com/PassSummary.aspx?satid=41765&lat=0&lng=0&loc=Unspecified&alt=0&tz=UCT
 
 satellite.getTable({
@@ -12,9 +11,9 @@ satellite.getTable({
 	pages: 4,
 	root: "./public/data/"
 }); //ISS
-/*
+
+// Also fetch Iridium flares (uncomment if you don't want this to run)
 iridium.getTable({
 	pages: 4,
 	root: "./public/data/"
 });
-*/

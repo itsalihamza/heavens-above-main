@@ -138,7 +138,7 @@ function getTable(config) {
 			} else {
 				for (let i = 0; i < 4; i++) {
 					database.sort(compare[i]);
-					database = database.map((ele, index) => {
+					database = database.map((ele) => {
 						ele[property[8]] += 100 * (1 - index / database.length) * weight[i];
 						return ele;
 					});
