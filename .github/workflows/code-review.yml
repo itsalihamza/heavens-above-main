@@ -49,6 +49,7 @@ jobs:
         with:
           name: eslint-report
           path: eslint-report.json
+        continue-on-error: true
   
   security-scan:
     name: Security Vulnerability Scan
@@ -85,6 +86,7 @@ jobs:
             audit-report.json
             snyk-report.json
           if-no-files-found: warn
+        continue-on-error: true
   
   code-complexity:
     name: Code Complexity Analysis
@@ -116,6 +118,7 @@ jobs:
           name: complexity-report
           path: reports/
           if-no-files-found: warn
+        continue-on-error: true
   
   test-coverage:
     name: Test Coverage Analysis
@@ -175,6 +178,7 @@ jobs:
           name: duplication-report
           path: reports/
           if-no-files-found: warn
+        continue-on-error: true
   
   pr-size-check:
     name: Pull Request Size Check
