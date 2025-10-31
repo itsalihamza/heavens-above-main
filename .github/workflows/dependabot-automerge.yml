@@ -137,11 +137,7 @@ jobs:
         id: major
         run: |
           npm outdated --json > outdated.json || true
-          if [ -s outdated.json ]; then
-            major_updates=$(jq -r 'to_entries | map(select(.value.latest != .value.current and (.value.latest | split(".")[0]) != (.value.current | split(".")[0]))) | length' outdated.json 2>/dev/null || echo 0)
-          else
-            major_updates=0
-          fi
+          major_updates=$(cat outdated.json | jq 'to_entries | map(select(.value.latest != .value.current and (.value.latest | split(".")[0]) != (.value.current | split(".")[0]))) | length')
           echo "count=$major_updates" >> $GITHUB_OUTPUT
       
       - name: Create issue for major updates
@@ -188,9 +184,6 @@ jobs:
         with:
           node-version: '18.x'
       
-      - name: Install dependencies
-        run: npm ci
-
       - name: Run npm audit fix
         run: |
           npm audit fix
