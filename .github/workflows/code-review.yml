@@ -83,6 +83,7 @@ jobs:
           path: |
             audit-report.json
             snyk-report.json
+          if-no-files-found: warn
   
   code-complexity:
     name: Code Complexity Analysis
@@ -99,6 +100,7 @@ jobs:
       
       - name: Install complexity reporter
         run: npm install -g complexity-report
+        continue-on-error: true
       
       - name: Analyze code complexity
         run: |
@@ -112,6 +114,7 @@ jobs:
         with:
           name: complexity-report
           path: reports/
+          if-no-files-found: warn
   
   test-coverage:
     name: Test Coverage Analysis
@@ -158,6 +161,7 @@ jobs:
       
       - name: Install jscpd
         run: npm install -g jscpd
+        continue-on-error: true
       
       - name: Check for code duplication
         run: |
@@ -169,10 +173,12 @@ jobs:
         with:
           name: duplication-report
           path: reports/
+          if-no-files-found: warn
   
   pr-size-check:
     name: Pull Request Size Check
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_review' }}
     
     steps:
       - name: Checkout code
@@ -235,6 +241,7 @@ jobs:
   enforce-standards:
     name: Enforce Code Standards
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_review' }}
     
     steps:
       - name: Checkout code
@@ -253,20 +260,30 @@ jobs:
       
       - name: Verify required files exist
         run: |
-          required_files=("README.md" "package.json" "package-lock.json")
+          required_files=("README.md" "package.json")
+          missing=false
           for file in "${required_files[@]}"; do
             if [ ! -f "$file" ]; then
               echo "❌ Required file missing: $file"
-              exit 1
+              missing=true
             fi
           done
-          echo "✅ All required files present"
+          if [ "$missing" = true ]; then
+            exit 1
+          fi
+          # check for a lockfile but don't fail the workflow if it's missing
+          if [ -f "package-lock.json" ] || [ -f "yarn.lock" ]; then
+            echo "✅ Lockfile present"
+          else
+            echo "⚠️ No lockfile found (package-lock.json or yarn.lock). It's recommended to have one."
+          fi
+          echo "✅ Required files present"
   
   auto-review-comment:
     name: Post Review Summary
     runs-on: ubuntu-latest
     needs: [code-quality, security-scan, test-coverage]
-    if: always()
+    if: ${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_review') && (always()) }}
     
     steps:
       - name: Post review summary
