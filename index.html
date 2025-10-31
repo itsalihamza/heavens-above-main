@@ -1,46 +1,355 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heavens Above - Documentation</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
-        h1 { color: #333; }
-        .docs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 30px; }
-        .doc-card { border: 1px solid #ddd; padding: 20px; border-radius: 8px; }
-        .doc-card h2 { margin-top: 0; color: #0066cc; }
-        a { color: #0066cc; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0">
+<title>YAS</title>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3/dist/jquery.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@3/dist/js/bootstrap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html-docx-js@0/dist/html-docx.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1/build/qrcode.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="css/ha.css">
+<style>
+td {
+	white-space: nowrap;
+}
+.green {
+	background-color: rgb(0,200,50) !important;
+}
+.grey {
+	background-color: rgb(150,150,150) !important;
+}
+.green, .grey {
+	color: white;
+}
+</style>
 </head>
 <body>
-    <h1>📚 Heavens Above Documentation</h1>
-    <p>Welcome to the Heavens Above project documentation.</p>
-    
-    <div class="docs-grid">
-        <div class="doc-card">
-            <h2>📖 User Guide</h2>
-            <p>Getting started with Heavens Above</p>
-            <a href="html/index.html">Read Guide →</a>
-        </div>
-        
-        <div class="doc-card">
-            <h2>🔧 API Reference</h2>
-            <p>Complete API documentation</p>
-            <a href="api/index.html">View API Docs →</a>
-        </div>
-        
-        <div class="doc-card">
-            <h2>📝 Changelog</h2>
-            <p>Project version history</p>
-            <a href="CHANGELOG.html">View Changelog →</a>
-        </div>
-    </div>
-    
-    <footer style="margin-top: 50px; padding-top: 20px; border-top: 1px solid #ddd; color: #666;">
-        <p>Generated on: $(date)</p>
-        <p>Version: $(git describe --tags --always)</p>
-    </footer>
+<div class="navbar navbar-default">
+	<div class="container">
+		<div class="navbar-header">
+			<a class="navbar-brand" href="#">
+				YAS
+			</a>
+			<button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navBar">
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+			</button>
+		</div>
+		<div class="collapse navbar-collapse navbar-right" id="navBar">
+			<ul class="nav navbar-nav">
+				<li><a href="https://github.com/PKUPI/heavens-above" target="_blank">开源</a></li>
+				<li><a href="https://www.heavens-above.com" target="_blank">数据</a></li>
+				<li class="dropdown" id="drop">
+					<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">手机浏览 <span class="caret"></span></a>
+					<ul class="dropdown-menu" aria-labelledby="dropdown">
+						<li><a href="javascript:void(0)">扫码打开本页面</a></li>
+						<li>
+							<img id="qrcode" style="width: 100%">
+							<script>
+								if (/mobile/i.test(navigator.userAgent) || /mobile/i.test(navigator.appVersion)) $("#drop").hide(); //window.hasOwnProperty("ontouchstart")
+								QRCode.toDataURL(location.href, {
+									margin: 1
+								}, (err, url) => {
+									$("#qrcode").attr("src", url);
+								});
+							</script>
+						</li>
+					</ul>
+				</li>
+			</ul>
+		</div>
+	</div>
+</div>
+<div class="container">
+	<h1>国际空间站（ISS）过境</h1>
+</div>
+<div class="container satellite" style="overflow-x: scroll;">
+	<table class="table table-striped table-bordered">
+		<thead>
+			<tr>
+				<td align="center" rowspan="2" style="vertical-align: middle">
+					选择
+				</td>
+				<td align="center" rowspan="2" style="vertical-align: middle">
+					推荐度
+				</td>
+				<td align="center" rowspan="2" style="vertical-align: middle">
+					日期
+				</td>
+				<td align="center" rowspan="2" style="vertical-align: middle">
+					持续时间
+				</td>
+				<td align="center" rowspan="2" style="vertical-align: middle">
+					星等
+				</td>
+				<td align="center" rowspan="2" style="vertical-align: middle">
+					星图
+				</td>
+				<td align="center" colspan="6">
+					升
+				</td>
+				<td align="center" colspan="6">
+					到达高度10°
+				</td>
+				<td align="center" colspan="6">
+					上中天
+				</td>
+				<td align="center" colspan="6">
+					低于高度10°
+				</td>
+				<td align="center" colspan="6">
+					降
+				</td>
+				<td align="center" colspan="6">
+					离开地影
+				</td>
+				<td align="center" colspan="6">
+					进入地影
+				</td>
+			</tr>
+			<tr class="tr">
+			</tr>
+		</thead>
+		<tbody id="satellite25544">
+		</tbody>
+	</table>
+</div>
+
+<div class="container">
+	<h1>铱星闪光</h1>
+</div>
+<div class="container iridium" style="overflow-x: scroll;">
+	<table class="table table-striped table-bordered">
+		<thead>
+			<tr>
+				<td align="center" rowspan="2">
+					选择
+				</td>
+				<td align="center" rowspan="2">
+					推荐度
+				</td>
+				<td align="center" rowspan="2">
+					日期
+				</td>
+				<td align="center" rowspan="2">
+					时间
+				</td>
+				<td align="center" rowspan="2">
+					星等
+				</td>
+				<td align="center" rowspan="2">
+					星图
+				</td>
+				<td align="center" rowspan="2">
+					高度角
+				</td>
+				<td align="center" rowspan="2">
+					方位角
+				</td>
+				<td align="center" rowspan="2">
+					卫星
+				</td>
+				<td align="center" rowspan="2">
+					至闪光中心距离
+				</td>
+				<td align="center" rowspan="2">
+					闪光中心亮度
+				</td>
+				<td align="center" rowspan="2">
+					至卫星距离
+				</td>
+				<td align="center" rowspan="2">
+					与闪光中心线的夹角
+				</td>
+				<td align="center" rowspan="2">
+					产生闪光的天线
+				</td>
+				<td align="center" rowspan="2">
+					太阳高度
+				</td>
+				<td align="center" rowspan="2">
+					对太阳的张角
+				</td>
+			</tr>
+			<tr class="tr">
+			</tr>
+		</thead>
+		<tbody id="IridiumFlares">
+		</tbody>
+	</table>
+</div>
+
+<div class="container" style="margin-bottom: 30px;">
+	<h1>生成天象预告</h1>
+	<h2>让撰写《天象预告》实现社会主义四个现代化中技术现代化的自动化</h2>
+	<p>请在上方表格中勾选想要出现在天象报告中的项目，然后点击「生成」<br>系统会自动获取相关图片及生成文字描述，并导出为Word文档。再点击「下载」即可保存到本地<br>卫星过境信息默认按照推荐度排序，暂时不支持根据时间排序，请等待新功能<br><b>警告：生成的Word文档为Office 2007兼容格式，秀米无法读取，请使用最新版Microsoft Word打开并选择「另存为」</b></p>
+	<p>其它天象可参考<a href="https://interesting-sky.china-vo.org" target="_blank">有趣天文奇观</a>网站</p>
+	<a class="btn btn-success" href="javascript:generate()">生成</a>
+	<a class="btn btn-info disabled" href="#" id="download">下载</a>
+</div>
+<script>
+var names = {
+	satellite25544: "国际空间站",
+	IridiumFlares: "铱星闪光"
+};
+
+var property = ["url", "date", "brightness", "events", "passType", "image", "scoreData", "exist", "score", "id"];
+var events = ["rise", "reachAltitude10deg", "highestPoint", "dropBelowAltitude10deg", "set", "exitShadow", "enterShadow"];
+var attribute = ["time", "altitude", "azimuth", "distance", "brightness", "sunAltitude"];
+var eventsIridium = ["brightness", "altitude", "azimuth", "satellite", "distanceToFlareCentre", "brightnessAtFlareCentre", "date", "time", "distanceToSatellite", "AngleOffFlareCentre-line", "flareProducingAntenna", "sunAltitude", "angularSeparationFromSun", "image", "id"];
+
+function appendThead() {
+	$(".satellite .tr").append(`
+				<td align="center">
+					时间
+				</td>
+				<td align="center">
+					高度角
+				</td>
+				<td align="center">
+					方位角
+				</td>
+				<td align="center">
+					距离
+				</td>
+				<td align="center">
+					星等
+				</td>
+				<td align="center">
+					太阳高度
+				</td>`);
+}
+
+function showData(target, type) {
+	fetch(`data/${target}/index.json`)
+		.then(response => response.json())
+		.then(obj => {
+			if (type === 0) obj.forEach(function(ele, index) {
+				var html = `<td><input type="checkbox" class="${target}" id="${ele[property[9]]}"></td>
+					<td>${ele[property[8]]}</td>
+					<td>${ele[property[1]]}</td>
+					<td>${ele[property[7]]}</td>
+					<td>${ele[property[2]]}</td>
+					<td>
+						<a href="download.html?target=${target}&id=${ele[property[9]]}" target="_blank">查看</a>
+					</td>`;
+				for (var j = 0; j < 7; j++) {
+					if (ele[property[3]][events[j]]) {
+						for (var k in ele[property[3]][events[j]]) {
+							html += `<td>${ele[property[3]][events[j]][k]}</td>`;
+						}
+					} else {
+						for (var k = 0; k < 6; k++) {
+							html += "<td>N/A</td>";
+						}
+					}
+				}
+				if (index < 3) $("#" + target).append(`<tr class="green">${html}</tr>`);
+				else if (ele[property[8]] === 0) $("#" + target).append(`<tr class="grey">${html}</tr>`);
+				else $("#" + target).append(`<tr>${html}</tr>`);
+			});
+			else obj.forEach(function(ele, index) {
+				var html = `<td><input type="checkbox" class="${target}" id="${ele[eventsIridium[14]]}"></td>
+					<td>N/A</td>
+					<td>${ele[eventsIridium[6]]}</td>
+					<td>${ele[eventsIridium[7]]}</td>
+					<td>${ele[eventsIridium[0]]}</td>
+					<td>
+						<a href="download.html?target=${target}&id=${ele[eventsIridium[14]]}" target="_blank">查看</a>
+					</td>`;
+				var map = [1, 2, 3, 4, 5, 8, 9, 10, 11, 12];
+				for (var j = 0; j < 10; j++) {
+					html += `<td>${ele[eventsIridium[map[j]]]}</td>`;
+				}
+				$("#" + target).append(`<tr>${html}</tr>`);
+			});
+		})
+		.catch(err => {
+			console.log("Error");
+		});
+}
+
+for (var i = 0; i < 7; i++) appendThead();
+showData("satellite25544", 0);
+showData("IridiumFlares", 1);
+
+function getText(text) {
+	return new Promise((resolve, reject) => {
+		resolve(`<p>${text}</p>`);
+	});
+}
+
+function getPic(src) {
+	return new Promise((resolve, reject) => {
+		var img = new Image();
+		img.src = src;
+		img.onload = function() {
+			var canvas = document.createElement("canvas");
+			var ctx = canvas.getContext("2d");
+			canvas.height = this.height;
+			canvas.width = this.width;
+			ctx.drawImage(this, 0, 0);
+			resolve(`<img src="${canvas.toDataURL()}">`);
+		}
+	});
+}
+
+function getTable(src) {
+	return fetch(src)
+		.then(response => response.text())
+		.then(result => {
+			var table = $(`<table class="standardTable"></table>`);
+			table.html(result);
+			$("body").append(table);
+			return html2canvas(table[0])
+				.then(function(canvas) {
+					document.body.appendChild(canvas);
+					var url = canvas.toDataURL("image/png");
+					document.body.removeChild(canvas);
+					table.remove();
+					return `<img src="${url}">`;
+				});
+		});
+}
+
+function generate() {
+	var target = $("input:checked");
+	if (target.length === 0) {
+		alert("没有选中项！");
+		return;
+	}
+	var queue = [], text1, text2;
+	target.each(function(i, o) {
+		temp = $(o).parents("tr").children();
+		if ($(o).attr("class") === "IridiumFlares") {
+			text1 = temp.eq(2).text() + temp.eq(3).text() + " 铱星闪光";
+			text2 = "最大亮度 " + temp.eq(4).text() + "等";
+		}
+		else {
+			text1 = temp.eq(2).text() + temp.eq(18).text() + " " + names[$(o).attr("class")] + "过境";
+			text2 = "最大亮度 " + temp.eq(4).text() + "等";
+		}
+		queue = queue.concat([getText(text1), getText(text2), getPic(`data/${$(o).attr("class")}/${$(o).attr("id")}.png`), getTable(`data/${$(o).attr("class")}/${$(o).attr("id")}.html`)]);
+	});
+	Promise.all(queue).then(values => {
+		console.log(values);
+		var content = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+</head>
+<body>
+${values.join("\n")}
+</body>
+</html>`;
+		var converted = htmlDocx.asBlob(content);
+		$("#download").removeClass("disabled").attr("href", URL.createObjectURL(converted)).attr("download", "天象预告.docx");
+	});
+}
+</script>
 </body>
 </html>
