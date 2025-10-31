@@ -1,0 +1,284 @@
+name: Custom Workflow Integration
+
+on:
+  release:
+    types: [published]
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      task_type:
+        description: 'Select task to run'
+        required: true
+        type: choice
+        options:
+          - generate-release-notes
+          - performance-analysis
+          - data-sync
+          - metrics-report
+
+jobs:
+  generate-release-notes:
+    name: Generate Release Notes
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' || github.event.inputs.task_type == 'generate-release-notes'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Get previous tag
+        id: previoustag
+        run: |
+          PREVIOUS_TAG=$(git describe --abbrev=0 --tags $(git rev-list --tags --skip=1 --max-count=1) 2>/dev/null || echo "")
+          echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+      
+      - name: Generate release notes
+        id: notes
+        run: |
+          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          PREV_TAG=${{ steps.previoustag.outputs.tag }}
+          
+          if [ -z "$PREV_TAG" ]; then
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          
+          echo "# Release Notes - $CURRENT_TAG" > release-notes.md
+          echo "" >> release-notes.md
+          echo "## 📝 Changes" >> release-notes.md
+          git log $PREV_TAG..$CURRENT_TAG --pretty=format:"- %s (%an)" --no-merges >> release-notes.md
+          
+          echo "" >> release-notes.md
+          echo "## 📊 Statistics" >> release-notes.md
+          echo "- Commits: $(git rev-list $PREV_TAG..$CURRENT_TAG --count)" >> release-notes.md
+          echo "- Contributors: $(git log $PREV_TAG..$CURRENT_TAG --format='%an' | sort -u | wc -l)" >> release-notes.md
+          echo "- Files Changed: $(git diff --name-only $PREV_TAG..$CURRENT_TAG | wc -l)" >> release-notes.md
+      
+      - name: Categorize commits
+        run: |
+          echo "" >> release-notes.md
+          echo "## 🔍 Categorized Changes" >> release-notes.md
+          echo "" >> release-notes.md
+          
+          echo "### ✨ Features" >> release-notes.md
+          git log ${{ steps.previoustag.outputs.tag }}..HEAD --pretty=format:"- %s" --no-merges --grep="^feat" >> release-notes.md || echo "No new features"
+          
+          echo "" >> release-notes.md
+          echo "### 🐛 Bug Fixes" >> release-notes.md
+          git log ${{ steps.previoustag.outputs.tag }}..HEAD --pretty=format:"- %s" --no-merges --grep="^fix" >> release-notes.md || echo "No bug fixes"
+          
+          echo "" >> release-notes.md
+          echo "### 📚 Documentation" >> release-notes.md
+          git log ${{ steps.previoustag.outputs.tag }}..HEAD --pretty=format:"- %s" --no-merges --grep="^docs" >> release-notes.md || echo "No documentation updates"
+      
+      - name: Upload release notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+      
+      - name: Update release with notes
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: release-notes.md
+  
+  performance-analysis:
+    name: Performance Analysis
+    runs-on: ubuntu-latest
+    if: github.event.inputs.task_type == 'performance-analysis' || github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run performance benchmarks
+        run: |
+          mkdir -p performance-reports
+          
+          # Measure execution time
+          START_TIME=$(date +%s)
+          node run.js
+          END_TIME=$(date +%s)
+          EXECUTION_TIME=$((END_TIME - START_TIME))
+          
+          echo "Execution Time: ${EXECUTION_TIME}s" > performance-reports/metrics.txt
+          echo "Timestamp: $(date)" >> performance-reports/metrics.txt
+      
+      - name: Analyze bundle size
+        run: |
+          npm install -g cost-of-modules
+          cost-of-modules --no-install > performance-reports/bundle-analysis.txt
+      
+      - name: Memory profiling
+        run: |
+          node --trace-gc run.js 2>&1 | grep -i "gc" > performance-reports/memory-profile.txt || true
+      
+      - name: Generate performance report
+        run: |
+          cat > performance-reports/report.md << 'EOF'
+          # Performance Analysis Report
+          
+          ## 📊 Metrics
+          $(cat performance-reports/metrics.txt)
+          
+          ## 📦 Bundle Analysis
+          Top dependencies by size:
+          $(head -20 performance-reports/bundle-analysis.txt)
+          
+          ## 💾 Memory Usage
+          $(tail -10 performance-reports/memory-profile.txt)
+          
+          ## 📈 Recommendations
+          - Monitor execution time trends
+          - Consider lazy loading for large dependencies
+          - Implement caching where appropriate
+          EOF
+      
+      - name: Upload performance reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-reports
+          path: performance-reports/
+  
+  data-sync:
+    name: Data Synchronization
+    runs-on: ubuntu-latest
+    if: github.event.inputs.task_type == 'data-sync'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Fetch latest satellite data
+        run: |
+          echo "Fetching latest satellite data..."
+          node run.js
+      
+      - name: Validate data integrity
+        run: |
+          if [ -d "public/data" ]; then
+            echo "✅ Data directory exists"
+            FILE_COUNT=$(find public/data -type f | wc -l)
+            echo "📁 Files in data directory: $FILE_COUNT"
+            
+            if [ $FILE_COUNT -eq 0 ]; then
+              echo "❌ No data files found"
+              exit 1
+            fi
+          else
+            echo "❌ Data directory not found"
+            exit 1
+          fi
+      
+      - name: Sync to external storage
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          if [ -n "$AWS_ACCESS_KEY_ID" ]; then
+            aws s3 sync public/data/ s3://heavens-above-data/ --delete
+            echo "✅ Data synced to S3"
+          else
+            echo "ℹ️ AWS credentials not configured"
+          fi
+      
+      - name: Create data snapshot
+        run: |
+          timestamp=$(date +'%Y%m%d-%H%M%S')
+          tar -czf data-snapshot-$timestamp.tar.gz public/data/
+          echo "📸 Snapshot created: data-snapshot-$timestamp.tar.gz"
+      
+      - name: Upload snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-snapshot
+          path: data-snapshot-*.tar.gz
+  
+  metrics-report:
+    name: Generate Metrics Report
+    runs-on: ubuntu-latest
+    if: github.event.inputs.task_type == 'metrics-report'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Collect repository metrics
+        run: |
+          mkdir -p reports
+          
+          echo "# Repository Metrics Report" > reports/metrics.md
+          echo "Generated: $(date)" >> reports/metrics.md
+          echo "" >> reports/metrics.md
+          
+          echo "## 📊 Code Statistics" >> reports/metrics.md
+          echo "- Total Lines of Code: $(find src -name '*.js' | xargs wc -l | tail -1 | awk '{print $1}')" >> reports/metrics.md
+          echo "- JavaScript Files: $(find src -name '*.js' | wc -l)" >> reports/metrics.md
+          echo "- Total Commits: $(git rev-list --count HEAD)" >> reports/metrics.md
+          echo "" >> reports/metrics.md
+          
+          echo "## 👥 Contributors" >> reports/metrics.md
+          echo "- Total Contributors: $(git log --format='%an' | sort -u | wc -l)" >> reports/metrics.md
+          echo "- Active in Last 30 Days: $(git log --since='30 days ago' --format='%an' | sort -u | wc -l)" >> reports/metrics.md
+          echo "" >> reports/metrics.md
+          
+          echo "## 🔥 Activity" >> reports/metrics.md
+          echo "- Commits (Last 7 Days): $(git log --since='7 days ago' --oneline | wc -l)" >> reports/metrics.md
+          echo "- Commits (Last 30 Days): $(git log --since='30 days ago' --oneline | wc -l)" >> reports/metrics.md
+      
+      - name: Generate code churn report
+        run: |
+          echo "" >> reports/metrics.md
+          echo "## 📈 Code Churn (Last 30 Days)" >> reports/metrics.md
+          git log --since='30 days ago' --numstat --pretty="%H" | awk 'NF==3 {plus+=$1; minus+=$2} END {print "- Lines Added: " plus "\n- Lines Removed: " minus}' >> reports/metrics.md
+      
+      - name: Top contributors
+        run: |
+          echo "" >> reports/metrics.md
+          echo "## 🏆 Top Contributors (Last 90 Days)" >> reports/metrics.md
+          git log --since='90 days ago' --format='%an' | sort | uniq -c | sort -rn | head -5 | awk '{print "- " $2 " " $3 " (" $1 " commits)"}' >> reports/metrics.md
+      
+      - name: Upload metrics report
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrics-report
+          path: reports/
+      
+      - name: Create issue with metrics
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const metrics = fs.readFileSync('reports/metrics.md', 'utf8');
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📊 Monthly Metrics Report - ${new Date().toISOString().split('T')[0]}`,
+              body: metrics,
+              labels: ['metrics', 'automated']
+            });
