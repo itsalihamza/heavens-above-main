@@ -1,0 +1,283 @@
+name: Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run ESLint
+        run: npm run lint -- --format json --output-file eslint-report.json
+        continue-on-error: true
+      
+      - name: Annotate code with linting errors
+        uses: ataylorme/eslint-annotate-action@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          report-json: eslint-report.json
+      
+      - name: Upload ESLint report
+        uses: actions/upload-artifact@v3
+        with:
+          name: eslint-report
+          path: eslint-report.json
+  
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+      
+      - name: Run npm audit
+        run: |
+          npm audit --json > audit-report.json || true
+          npm audit --audit-level=moderate
+        continue-on-error: true
+      
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+      
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            audit-report.json
+            snyk-report.json
+  
+  code-complexity:
+    name: Code Complexity Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+      
+      - name: Install complexity reporter
+        run: npm install -g complexity-report
+      
+      - name: Analyze code complexity
+        run: |
+          mkdir -p reports
+          cr src/**/*.js --format json > reports/complexity.json || true
+          cr src/**/*.js
+        continue-on-error: true
+      
+      - name: Upload complexity report
+        uses: actions/upload-artifact@v3
+        with:
+          name: complexity-report
+          path: reports/
+  
+  test-coverage:
+    name: Test Coverage Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests with coverage
+        run: npm test -- --coverage --coverageReporters=json --coverageReporters=lcov
+      
+      - name: Coverage report comment
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          lcov-file: ./coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Check coverage thresholds
+        run: |
+          npm test -- --coverage --coverageThreshold='{"global":{"branches":70,"functions":70,"lines":70,"statements":70}}'
+  
+  code-duplication:
+    name: Code Duplication Detection
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+      
+      - name: Install jscpd
+        run: npm install -g jscpd
+      
+      - name: Check for code duplication
+        run: |
+          jscpd src/ --reporters json,console --output ./reports
+        continue-on-error: true
+      
+      - name: Upload duplication report
+        uses: actions/upload-artifact@v3
+        with:
+          name: duplication-report
+          path: reports/
+  
+  pr-size-check:
+    name: Pull Request Size Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Check PR size
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            
+            const additions = pr.additions;
+            const deletions = pr.deletions;
+            const totalChanges = additions + deletions;
+            
+            let size = 'XS';
+            let emoji = '🟢';
+            
+            if (totalChanges > 1000) {
+              size = 'XL';
+              emoji = '🔴';
+            } else if (totalChanges > 500) {
+              size = 'L';
+              emoji = '🟠';
+            } else if (totalChanges > 200) {
+              size = 'M';
+              emoji = '🟡';
+            } else if (totalChanges > 50) {
+              size = 'S';
+              emoji = '🟢';
+            }
+            
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: [`size/${size}`]
+            });
+            
+            const comment = `${emoji} **PR Size: ${size}**\n\n` +
+              `📊 Statistics:\n` +
+              `- ➕ Additions: ${additions}\n` +
+              `- ➖ Deletions: ${deletions}\n` +
+              `- 📝 Total changes: ${totalChanges}\n\n` +
+              (totalChanges > 500 ? '⚠️ Consider breaking this PR into smaller chunks for easier review.' : '✅ PR size looks good!');
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment
+            });
+  
+  enforce-standards:
+    name: Enforce Code Standards
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Check commit messages
+        uses: wagoid/commitlint-github-action@v5
+      
+      - name: Check branch naming
+        run: |
+          BRANCH_NAME="${{ github.head_ref }}"
+          if [[ ! $BRANCH_NAME =~ ^(feature|bugfix|hotfix|release|docs|chore)/.+ ]]; then
+            echo "❌ Branch name must follow pattern: feature|bugfix|hotfix|release|docs|chore/description"
+            exit 1
+          fi
+      
+      - name: Verify required files exist
+        run: |
+          required_files=("README.md" "package.json" "package-lock.json")
+          for file in "${required_files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Required file missing: $file"
+              exit 1
+            fi
+          done
+          echo "✅ All required files present"
+  
+  auto-review-comment:
+    name: Post Review Summary
+    runs-on: ubuntu-latest
+    needs: [code-quality, security-scan, test-coverage]
+    if: always()
+    
+    steps:
+      - name: Post review summary
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const summary = `## 🔍 Automated Code Review Summary\n\n` +
+              `| Check | Status |\n` +
+              `|-------|--------|\n` +
+              `| Code Quality | ${{ needs.code-quality.result == 'success' ? '✅' : '❌' }} |\n` +
+              `| Security Scan | ${{ needs.security-scan.result == 'success' ? '✅' : '❌' }} |\n` +
+              `| Test Coverage | ${{ needs.test-coverage.result == 'success' ? '✅' : '❌' }} |\n\n` +
+              `📝 Please review the detailed reports in the workflow artifacts.\n\n` +
+              `*Generated by automated code review workflow*`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: summary
+            });
