@@ -223,6 +223,8 @@ jobs:
     name: Generate Metrics Report
     runs-on: ubuntu-latest
     if: github.event.inputs.task_type == 'metrics-report'
+    permissions:
+      issues: write
     
     steps:
       - name: Checkout code
