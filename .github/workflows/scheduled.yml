@@ -41,30 +41,33 @@ jobs:
             ts=$(date -u +%Y%m%dT%H%M%SZ)
             file=backups/public-data-${ts}.tar.gz
             tar -czf "$file" public/data
-            echo "BACKUP_FILE=$file" >> $GITHUB_ENV
+            echo "file=$file" >> "$GITHUB_OUTPUT"
             echo "Backup created: $file"
           else
             echo "No public/data directory found; skipping backup"
+            echo "file=" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Upload backup artifact
-        if: env.BACKUP_FILE != ''
+        if: steps.backup.outputs.file != ''
         uses: actions/upload-artifact@v4
         with:
           name: public-data-backup
-          path: ${{ env.BACKUP_FILE }}
+          path: ${{ steps.backup.outputs.file }}
 
       - name: Create run summary issue
         uses: actions/github-script@v6
         with:
           script: |
             const ts = new Date().toISOString();
-            const backupFile = process.env.BACKUP_FILE || 'none';
+            // steps.backup.outputs.file is substituted by runner into this script
+            const backupFile = '${{ steps.backup.outputs.file }}' || 'none';
             const body = `Automated scheduled maintenance run on ${ts}\n\n- Lint: completed\n- Tests: completed\n- Backup artifact: ${backupFile}\n\nThis issue was created automatically by the scheduled maintenance workflow.`;
             // In github-script v6 the Octokit instance exposes REST methods under `github.rest`
-            await github.rest.issues.create({
+            const resp = await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `Scheduled maintenance run - ${ts}`,
               body
             });
+            console.log(`Created issue: ${resp.data.html_url}`);
